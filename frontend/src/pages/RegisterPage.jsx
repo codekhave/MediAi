@@ -101,8 +101,26 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
 
+    const payload = {
+      email: formData.email.trim(),
+      password: formData.password,
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      role: formData.role,
+      phone_number: formData.phone_number ? formData.phone_number.trim() : '',
+    }
+
+    if (formData.role === 'doctor') {
+      if (formData.licence_number && formData.licence_number.trim()) {
+        payload.licence_number = formData.licence_number.trim()
+      }
+      if (formData.specialization_id && formData.specialization_id.trim()) {
+        payload.specialization_id = formData.specialization_id.trim()
+      }
+    }
+
     try {
-      const res = await api.post('/auth/register/', formData)
+      const res = await api.post('/auth/register/', payload)
       if (res.data?.dev_otp) {
         setDevOtp(res.data.dev_otp)
       }

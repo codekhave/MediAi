@@ -87,7 +87,15 @@ class RegisterSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=User.ROLE_CHOICES, default='patient')
     # Optional fields for Doctor registration
     licence_number = serializers.CharField(required=False, write_only=True, allow_blank=True)
-    specialization_id = serializers.UUIDField(required=False, write_only=True, allow_null=True)
+    specialization_id = serializers.CharField(required=False, write_only=True, allow_blank=True, allow_null=True)
+
+    def validate_specialization_id(self, value):
+        if not value or not str(value).strip():
+            return None
+        try:
+            return uuid.UUID(str(value).strip())
+        except (ValueError, AttributeError):
+            raise serializers.ValidationError("Must be a valid UUID.")
 
     class Meta:
         model = User
