@@ -153,3 +153,16 @@ else:
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 ADMIN_REGISTRATION_SECRET = os.environ.get('ADMIN_REGISTRATION_SECRET', 'admin-secret-key-12345')
+
+# Production Email Configuration (SMTP / Live Delivery)
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND', 
+    'django.core.mail.backends.smtp.EmailBackend' if os.environ.get('EMAIL_HOST_USER') else 'django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'MediAI Clinical Health <noreply@mediai-health.com>')
+

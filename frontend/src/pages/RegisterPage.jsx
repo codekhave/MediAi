@@ -27,7 +27,6 @@ export default function RegisterPage() {
 
   // OTP State
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [devOtp, setDevOtp] = useState(null)
   const [countdown, setCountdown] = useState(600) // 10 minutes in seconds
   const [resendCooldown, setResendCooldown] = useState(0)
   const [otpLoading, setOtpLoading] = useState(false)
@@ -120,10 +119,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await api.post('/auth/register/', payload)
-      if (res.data?.dev_otp) {
-        setDevOtp(res.data.dev_otp)
-      }
+      await api.post('/auth/register/', payload)
       setStep(2)
       setCountdown(600)
       setResendCooldown(60)
@@ -220,13 +216,10 @@ export default function RegisterPage() {
     setOtpLoading(true)
 
     try {
-      const res = await api.post('/auth/resend-otp/', {
+      await api.post('/auth/resend-otp/', {
         email: formData.email,
         purpose: 'registration'
       })
-      if (res.data?.dev_otp) {
-        setDevOtp(res.data.dev_otp)
-      }
       setResendCooldown(60)
       setCountdown(600)
       setOtp(['', '', '', '', '', ''])
@@ -239,14 +232,7 @@ export default function RegisterPage() {
     }
   }
 
-  // Auto-fill dev code for testing convenience
-  const handleAutofillDevCode = () => {
-    if (devOtp && devOtp.length === 6) {
-      const digits = devOtp.split('')
-      setOtp(digits)
-      otpInputsRef.current[5]?.focus()
-    }
-  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-indigo-50/20 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -545,23 +531,6 @@ export default function RegisterPage() {
                   Edit email address
                 </button>
               </div>
-
-              {/* Dev Helper Chip for Instant Testing */}
-              {devOtp && (
-                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-2.5 text-xs text-purple-800 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 font-semibold text-left">
-                    <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                    <span>Demo Auto-Fill Code: <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded text-purple-900">{devOtp}</code></span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutofillDevCode}
-                    className="px-2.5 py-1 bg-purple-600 text-white rounded-lg text-[11px] font-bold hover:bg-purple-700 transition-colors shrink-0"
-                  >
-                    Auto-Fill
-                  </button>
-                </div>
-              )}
 
               {/* 6-Digit Segmented Pin Inputs */}
               <div>

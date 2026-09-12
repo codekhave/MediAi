@@ -22,13 +22,11 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        dev_otp = getattr(user, '_dev_otp', None)
         return Response({
             'message': 'Registration successful! A 6-digit clinical verification code has been dispatched to your email.',
             'email': user.email,
             'role': user.role,
             'requires_otp': True,
-            'dev_otp': dev_otp,
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
 

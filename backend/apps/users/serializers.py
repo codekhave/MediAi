@@ -124,8 +124,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         # Dispatch 6-digit verification OTP
         from .utils import generate_and_send_otp
-        _, otp_code = generate_and_send_otp(user, purpose='registration')
-        user._dev_otp = otp_code
+        generate_and_send_otp(user, purpose='registration')
 
         return user
 
@@ -219,8 +218,7 @@ class ResendOTPSerializer(serializers.Serializer):
 
         return {
             'message': f'A new 6-digit verification code has been dispatched to {user.email}.',
-            'email': user.email,
-            'dev_otp': new_otp
+            'email': user.email
         }
 
 
@@ -237,8 +235,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
         _, otp_code = generate_and_send_otp(user, purpose='password_reset')
         return {
             'message': f'A password reset authorization code has been dispatched to {user.email}.',
-            'email': user.email,
-            'dev_otp': otp_code
+            'email': user.email
         }
 
 
@@ -308,11 +305,10 @@ class LoginSerializer(serializers.Serializer):
         # Check if email is verified
         if not user.is_email_verified:
             from .utils import generate_and_send_otp
-            _, dev_otp = generate_and_send_otp(user, purpose='registration')
+            generate_and_send_otp(user, purpose='registration')
             raise serializers.ValidationError({
                 'requires_verification': True,
                 'email': user.email,
-                'dev_otp': dev_otp,
                 'message': 'Please verify your email address to access your clinical portal.'
             })
 

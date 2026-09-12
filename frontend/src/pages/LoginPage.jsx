@@ -19,7 +19,6 @@ export default function LoginPage() {
   const [showVerifyModal, setShowVerifyModal] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState('')
   const [verifyOtp, setVerifyOtp] = useState(['', '', '', '', '', ''])
-  const [verifyDevOtp, setVerifyDevOtp] = useState(null)
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [verifyError, setVerifyError] = useState('')
 
@@ -29,26 +28,22 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotOtp, setForgotOtp] = useState('')
   const [forgotNewPassword, setForgotNewPassword] = useState('')
-  const [forgotDevOtp, setForgotDevOtp] = useState(null)
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotError, setForgotError] = useState('')
 
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
 
-  const handleLogin = async (e, demoEmail = null, demoPassword = null) => {
+  const handleLogin = async (e) => {
     if (e) e.preventDefault()
     setError('')
     setSuccessMessage('')
     setLoading(true)
 
-    const loginEmail = demoEmail || email
-    const loginPassword = demoPassword || password
-
     try {
       const res = await api.post('/auth/login/', {
-        email: loginEmail,
-        password: loginPassword,
+        email: email,
+        password: password,
       })
       const { user, token, refresh_token } = res.data
       setAuth(user, token, refresh_token)
@@ -60,7 +55,6 @@ export default function LoginPage() {
       const errData = err.response?.data
       if (errData?.requires_verification) {
         setVerifyEmail(errData.email)
-        setVerifyDevOtp(errData.dev_otp)
         setShowVerifyModal(true)
         setVerifyError(errData.message || 'Please verify your email address to log in.')
       } else {
@@ -124,10 +118,7 @@ export default function LoginPage() {
     setForgotLoading(true)
 
     try {
-      const res = await api.post('/auth/forgot-password/', { email: forgotEmail })
-      if (res.data?.dev_otp) {
-        setForgotDevOtp(res.data.dev_otp)
-      }
+      await api.post('/auth/forgot-password/', { email: forgotEmail })
       setForgotStep(2)
     } catch (err) {
       const errData = err.response?.data
@@ -273,39 +264,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials Panel */}
-          <div className="mt-7 pt-5 border-t border-slate-100">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5">
-              ⚡ 1-Click Instant Demo Portals
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleLogin(null, 'patient@mediai.com', 'patient123')}
-                className="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 rounded-2xl text-center text-xs font-bold text-slate-700 hover:text-purple-700 transition-all shadow-sm"
-              >
-                <UserCheck className="w-4 h-4 mx-auto mb-1 text-purple-600" />
-                Patient
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLogin(null, 'doctor@mediai.com', 'doctor123')}
-                className="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 rounded-2xl text-center text-xs font-bold text-slate-700 hover:text-purple-700 transition-all shadow-sm"
-              >
-                <Stethoscope className="w-4 h-4 mx-auto mb-1 text-purple-600" />
-                Doctor
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLogin(null, 'admin@mediai.com', 'admin123')}
-                className="p-2.5 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 rounded-2xl text-center text-xs font-bold text-slate-700 hover:text-purple-700 transition-all shadow-sm"
-              >
-                <Shield className="w-4 h-4 mx-auto mb-1 text-purple-600" />
-                Admin
-              </button>
-            </div>
-          </div>
-
           {/* Bottom Security Disclaimers */}
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-3 text-[11px] font-semibold text-slate-400">
             <span className="flex items-center gap-1">
@@ -350,19 +308,6 @@ export default function LoginPage() {
               Your account requires email verification. Enter the 6-digit code sent to:
               <br /><strong className="text-slate-900">{verifyEmail}</strong>
             </p>
-
-            {verifyDevOtp && (
-              <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-2 text-xs text-purple-800 font-semibold flex items-center justify-between">
-                <span>Demo Code: <code className="font-mono font-bold">{verifyDevOtp}</code></span>
-                <button
-                  type="button"
-                  onClick={() => setVerifyOtp(verifyDevOtp.split(''))}
-                  className="px-2 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold"
-                >
-                  Auto-Fill
-                </button>
-              </div>
-            )}
 
             {verifyError && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-2.5 rounded-xl font-semibold">
@@ -426,19 +371,6 @@ export default function LoginPage() {
                 ? 'Enter your registered email address and we will dispatch a 6-digit authorization code.'
                 : `Enter the 6-digit authorization code dispatched to ${forgotEmail} along with your new password.`}
             </p>
-
-            {forgotDevOtp && forgotStep === 2 && (
-              <div className="mb-4 bg-purple-50 border border-purple-200 rounded-xl p-2 text-xs text-purple-800 font-semibold flex items-center justify-between">
-                <span>Demo Reset Code: <code className="font-mono font-bold">{forgotDevOtp}</code></span>
-                <button
-                  type="button"
-                  onClick={() => setForgotOtp(forgotDevOtp)}
-                  className="px-2 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold"
-                >
-                  Auto-Fill
-                </button>
-              </div>
-            )}
 
             {forgotError && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-2.5 rounded-xl font-semibold">

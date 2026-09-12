@@ -209,11 +209,9 @@ export default function ChatPage() {
   const [searchFilter, setSearchFilter] = useState('')
   const [filterTab, setFilterTab] = useState('all') // 'all' | 'specialists' | 'patients'
 
-  // Doctors and Patients directory for instant switching
+  // Doctors and Patients directory
   const [allDoctors, setAllDoctors] = useState([])
   const [allPatients, setAllPatients] = useState([])
-  const [showDoctorSwitcherDropdown, setShowDoctorSwitcherDropdown] = useState(false)
-  const [showAccountSwitcherDropdown, setShowAccountSwitcherDropdown] = useState(false)
 
   // Side Drawer state for physician details & media gallery
   const [showDoctorDrawer, setShowDoctorDrawer] = useState(false)
@@ -389,18 +387,7 @@ export default function ChatPage() {
     }
   }
 
-  // Demo helper: Instant account switch between patient and doctor
-  const handleSwitchAccount = async (targetEmail, targetPassword) => {
-    setShowAccountSwitcherDropdown(false)
-    try {
-      const res = await api.post('/auth/login/', { email: targetEmail, password: targetPassword })
-      setAuth(res.data.user, res.data.access, res.data.refresh)
-      setActiveConv(null)
-      // will trigger useEffect on user change
-    } catch (err) {
-      alert('Could not switch account automatically. Please log in normally.')
-    }
-  }
+
 
   const handleFileSelect = (e, type) => {
     const file = e.target.files?.[0]
@@ -582,60 +569,11 @@ Doctor, please review this triage memo for our consultation.`
                 <div className="min-w-0">
                   <div className="text-xs sm:text-sm font-bold text-slate-900 truncate">{user?.full_name}</div>
                   
-                  {/* Account / Role Badge with Switcher */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowAccountSwitcherDropdown(!showAccountSwitcherDropdown)}
-                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 hover:underline"
-                      title="Switch Demo Role"
-                    >
-                      <span className="capitalize">{user?.role} Portal</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-
-                    {/* Account Switcher Dropdown */}
-                    {showAccountSwitcherDropdown && (
-                      <div className="absolute top-6 left-0 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in space-y-1">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">Quick Account Switch:</div>
-                        <button
-                          onClick={() => handleSwitchAccount('patient@mediai.com', 'patient123')}
-                          className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between ${
-                            user?.email === 'patient@mediai.com' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div>
-                            <div>Daniel Echo</div>
-                            <div className="text-[10px] text-slate-400">patient@mediai.com (Patient)</div>
-                          </div>
-                          {user?.email === 'patient@mediai.com' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                        </button>
-                        <button
-                          onClick={() => handleSwitchAccount('doctor@mediai.com', 'doctor123')}
-                          className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between ${
-                            user?.email === 'doctor@mediai.com' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div>
-                            <div>Dr. Sarah Jenkins</div>
-                            <div className="text-[10px] text-slate-400">doctor@mediai.com (Cardiology)</div>
-                          </div>
-                          {user?.email === 'doctor@mediai.com' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                        </button>
-                        <button
-                          onClick={() => handleSwitchAccount('david.chen@mediai.com', 'doctor123')}
-                          className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between ${
-                            user?.email === 'david.chen@mediai.com' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div>
-                            <div>Dr. David Chen</div>
-                            <div className="text-[10px] text-slate-400">david.chen@mediai.com (Neurology)</div>
-                          </div>
-                          {user?.email === 'david.chen@mediai.com' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {/* Clinical Portal Badge */}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 capitalize bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                    <ShieldCheck className="w-3 h-3 text-indigo-600" />
+                    {user?.role} Portal
+                  </span>
                 </div>
               </div>
 
@@ -1019,7 +957,7 @@ Doctor, please review this triage memo for our consultation.`
                     </div>
                     <div className="text-sm font-bold text-slate-900">Encrypted Consultation Initialized</div>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      Send symptom questions, photos, lab PDFs, or video demonstrations to start your specialist review.
+                      Send symptom questions, clinical photos, lab PDF reports, or video recordings to start your specialist consultation.
                     </p>
                   </div>
                 ) : (
@@ -1152,7 +1090,7 @@ Doctor, please review this triage memo for our consultation.`
                   className="shrink-0 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg flex items-center gap-1.5 transition-colors"
                 >
                   <Film className="w-3 h-3 text-rose-600" />
-                  <span>Send Video Demo</span>
+                  <span>Video Recording</span>
                 </button>
 
                 <button
