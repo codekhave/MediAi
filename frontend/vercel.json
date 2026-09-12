@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "https://mediai-backend.onrender.com/api/:match*"
+      "destination": "https://mediai-1-dfc2.onrender.com/api/:match*"
     },
     {
       "source": "/(.*)",
