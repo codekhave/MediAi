@@ -215,6 +215,7 @@ export default function ChatPage() {
 
   // Side Drawer state for physician details & media gallery
   const [showDoctorDrawer, setShowDoctorDrawer] = useState(false)
+  const [showDoctorSwitcherDropdown, setShowDoctorSwitcherDropdown] = useState(false)
 
   // File Attachment State
   const [selectedFile, setSelectedFile] = useState(null)
@@ -241,6 +242,7 @@ export default function ChatPage() {
 
   const socketRef = useRef(null)
   const messagesEndRef = useRef(null)
+  const chatInputRef = useRef(null)
 
   useEffect(() => {
     fetchConversations()
@@ -251,12 +253,35 @@ export default function ChatPage() {
   }, [user])
 
   useEffect(() => {
-    if (activeConv) {
-      fetchMessages(activeConv.id)
-      connectWebSocket(activeConv.id)
-    }
+    if (!activeConv) return
+
+    fetchMessages(activeConv.id)
+    connectWebSocket(activeConv.id)
+
+    // Dual-sync polling fallback every 3.5s to ensure zero message drops across Vercel/Render
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        api.get(`/chat/conversations/${activeConv.id}/messages/`)
+          .then(res => {
+            if (res.data && Array.isArray(res.data)) {
+              setMessages(prev => {
+                if (res.data.length !== prev.length || (res.data.length > 0 && prev.length > 0 && res.data[res.data.length - 1].id !== prev[prev.length - 1].id)) {
+                  return res.data
+                }
+                return prev
+              })
+            }
+          })
+          .catch(() => {})
+      }
+    }, 3500)
+
     return () => {
-      if (socketRef.current) socketRef.current.close()
+      clearInterval(pollInterval)
+      if (socketRef.current) {
+        socketRef.current.close()
+        socketRef.current = null
+      }
     }
   }, [activeConv])
 
@@ -316,11 +341,14 @@ export default function ChatPage() {
   }
 
   const connectWebSocket = (convId) => {
-    if (socketRef.current) socketRef.current.close()
+    if (socketRef.current) {
+      socketRef.current.close()
+      socketRef.current = null
+    }
 
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    const wsHost = isLocal ? window.location.host : 'mediai-1-dfc2.onrender.com'
-    const wsScheme = isLocal && window.location.protocol !== 'https:' ? 'ws' : 'wss'
+    const wsHost = isLocal ? 'localhost:8000' : 'mediai-1-dfc2.onrender.com'
+    const wsScheme = isLocal ? 'ws' : 'wss'
     const wsUrl = `${wsScheme}://${wsHost}/ws/chat/${convId}/`
     
     try {
@@ -328,14 +356,20 @@ export default function ChatPage() {
       socketRef.current = socket
 
       socket.onmessage = (e) => {
-        const data = JSON.parse(e.data)
-        setMessages((prev) => {
-          if (prev.some(m => m.id === data.id)) return prev
-          return [...prev, data]
-        })
+        try {
+          const data = JSON.parse(e.data)
+          if (data && (data.id || data.content)) {
+            setMessages((prev) => {
+              if (prev.some(m => m.id === data.id)) return prev
+              return [...prev, data]
+            })
+          }
+        } catch (err) {
+          // ignore parse error
+        }
       }
     } catch (err) {
-      console.warn('WebSocket fallback to standard API delivery')
+      console.warn('WebSocket fallback to real-time API sync active')
     }
   }
 
@@ -345,9 +379,14 @@ export default function ChatPage() {
     setShowNewChatModal(false)
 
     // Check if conversation already exists with this doctor
-    const existing = conversations.find(c => c.doctor === docId || c.doctor_detail?.id === docId)
+    const existing = conversations.find(c => 
+      c.doctor === docId || 
+      c.doctor_detail?.id === docId || 
+      c.doctor_detail?.user?.id === docId
+    )
     if (existing) {
       setActiveConv(existing)
+      setTimeout(() => chatInputRef.current?.focus(), 120)
       return
     }
 
@@ -359,7 +398,9 @@ export default function ChatPage() {
         return [res.data, ...prev]
       })
       setActiveConv(res.data)
+      setTimeout(() => chatInputRef.current?.focus(), 120)
     } catch (err) {
+      console.error('Failed to switch to specialist:', err)
       alert(err.response?.data?.error || 'Failed to switch to specialist.')
     }
   }
@@ -369,9 +410,13 @@ export default function ChatPage() {
     setShowDoctorSwitcherDropdown(false)
     setShowNewChatModal(false)
 
-    const existing = conversations.find(c => c.patient === patientId || c.patient_detail?.id === patientId)
+    const existing = conversations.find(c => 
+      c.patient === patientId || 
+      c.patient_detail?.id === patientId
+    )
     if (existing) {
       setActiveConv(existing)
+      setTimeout(() => chatInputRef.current?.focus(), 120)
       return
     }
 
@@ -382,7 +427,9 @@ export default function ChatPage() {
         return [res.data, ...prev]
       })
       setActiveConv(res.data)
+      setTimeout(() => chatInputRef.current?.focus(), 120)
     } catch (err) {
+      console.error('Failed to open consultation channel:', err)
       alert(err.response?.data?.error || 'Failed to open consultation channel.')
     }
   }
@@ -453,23 +500,32 @@ export default function ChatPage() {
         const msgContent = inputMsg.trim()
         setInputMsg('')
 
+        // 1. Guaranteed HTTP REST delivery so messages are ALWAYS saved in the database
+        const res = await api.post(`/chat/conversations/${activeConv.id}/messages/`, { content: msgContent })
+        
+        setMessages((prev) => {
+          if (prev.some(m => m.id === res.data.id)) return prev
+          return [...prev, res.data]
+        })
+        setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, last_message: res.data } : c))
+
+        // 2. Extra instant WebSocket broadcast to active peers
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-          socketRef.current.send(JSON.stringify({
-            message: msgContent,
-            sender_id: user.id
-          }))
-        } else {
-          const res = await api.post(`/chat/conversations/${activeConv.id}/messages/`, { content: msgContent })
-          setMessages((prev) => {
-            if (prev.some(m => m.id === res.data.id)) return prev
-            return [...prev, res.data]
-          })
-          setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, last_message: res.data } : c))
+          try {
+            socketRef.current.send(JSON.stringify({
+              message: msgContent,
+              sender_id: user.id
+            }))
+          } catch (wsErr) {
+            // WS failed, REST delivery already succeeded
+          }
         }
+
+        setTimeout(() => chatInputRef.current?.focus(), 80)
       }
     } catch (err) {
       console.error('Failed to deliver message:', err)
-      alert('Could not deliver message. Please try again.')
+      alert('Could not deliver message. Please check your connection and try again.')
     } finally {
       setUploading(false)
     }
@@ -962,7 +1018,13 @@ Doctor, please review this triage memo for our consultation.`
                   </div>
                 ) : (
                   messages.map((m, idx) => {
-                    const isMe = m.sender === user?.id || m.sender_id === user?.id
+                    const isMe = (
+                      m.sender === user?.id || 
+                      m.sender_id === user?.id || 
+                      (typeof m.sender === 'object' && m.sender?.id === user?.id) ||
+                      (m.sender && user?.id && String(m.sender) === String(user.id)) ||
+                      (m.sender_id && user?.id && String(m.sender_id) === String(user.id))
+                    )
                     const isTriage = m.content?.includes('CLINICAL TRIAGE MEMO')
                     const mediaUrl = getMediaUrl(m)
 
@@ -1237,6 +1299,7 @@ Doctor, please review this triage memo for our consultation.`
                   </button>
 
                   <input
+                    ref={chatInputRef}
                     type="text"
                     placeholder={selectedFile ? "Add a message caption (optional)..." : "Type a clinical question or symptom update... (Press Enter to send)"}
                     value={inputMsg}
@@ -1256,21 +1319,79 @@ Doctor, please review this triage memo for our consultation.`
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-linear-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs border border-indigo-100">
-                <MessageSquare className="w-8 h-8" />
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto">
+              <div className="max-w-md w-full space-y-6">
+                <div className="w-16 h-16 rounded-3xl bg-linear-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs border border-indigo-100 mx-auto">
+                  <MessageSquare className="w-8 h-8" />
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Direct Doctor Telehealth Consultations</h3>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Select a specialist below or click &quot;Start Chat&quot; in the left directory to connect with a board-certified physician.
+                  </p>
+                </div>
+
+                {/* Available Doctors Quick Grid */}
+                {allDoctors.length > 0 && user?.role === 'patient' && (
+                  <div className="space-y-2.5 pt-2 text-left">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1 flex items-center justify-between">
+                      <span>Available Specialists ({allDoctors.length})</span>
+                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        Online Now
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {allDoctors.map((doc) => (
+                        <div
+                          key={doc.id}
+                          onClick={() => handleSelectDoctor(doc.id)}
+                          className="p-3 bg-white hover:bg-indigo-50/70 rounded-2xl border border-slate-200/90 hover:border-indigo-300 flex items-center justify-between cursor-pointer transition-all shadow-2xs group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                              {doc.user?.first_name?.[0] || 'D'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1">
+                                <span>Dr. {doc.user?.first_name} {doc.user?.last_name}</span>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              </div>
+                              <div className="text-[11px] text-indigo-600 font-semibold truncate">
+                                {doc.specialization_detail?.name || 'Medical Specialist'}
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">
+                                {doc.hospital_affiliation || 'MediAI Clinical Network'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleSelectDoctor(doc.id)
+                            }}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors shrink-0 flex items-center gap-1"
+                          >
+                            <span>Chat</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowNewChatModal(true)}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white font-semibold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Choose Another Specialist</span>
+                </button>
               </div>
-              <h3 className="text-base font-bold text-slate-800">Direct Doctor-Patient Telehealth Channel</h3>
-              <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
-                Select an ongoing consultation thread from the directory or choose a doctor below to begin.
-              </p>
-              <button
-                onClick={() => setShowNewChatModal(true)}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all hover:shadow-indigo-200"
-              >
-                <Plus className="w-4 h-4" />
-                Select Doctor & Begin Consultation
-              </button>
             </div>
           )}
         </div>
