@@ -7,7 +7,8 @@ from .models import User, Specialization, PatientProfile, DoctorProfile, DoctorA
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     SpecializationSerializer, PatientProfileSerializer, DoctorProfileSerializer,
-    DoctorAvailabilitySerializer, DoctorRatingSerializer, DoctorDocumentSerializer
+    DoctorAvailabilitySerializer, DoctorRatingSerializer, DoctorDocumentSerializer,
+    VerifyOTPSerializer, ResendOTPSerializer, ForgotPasswordSerializer, ResetPasswordOTPSerializer
 )
 from .permissions import IsAdmin, IsDoctor
 
@@ -16,6 +17,56 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        dev_otp = getattr(user, '_dev_otp', None)
+        return Response({
+            'message': 'Registration successful! A 6-digit clinical verification code has been dispatched to your email.',
+            'email': user.email,
+            'role': user.role,
+            'requires_otp': True,
+            'dev_otp': dev_otp,
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class VerifyOTPView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class ResendOTPView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ResendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class ResetPasswordOTPView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):

@@ -132,8 +132,22 @@ export default function Navbar() {
                   {user.first_name ? user.first_name[0] : 'U'}
                 </div>
                 <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold text-slate-800 leading-tight">{user.first_name} {user.last_name}</div>
-                  <div className="text-[10px] text-purple-600 font-semibold capitalize">{user.role}</div>
+                  <div className="text-xs font-bold text-slate-800 leading-tight flex items-center gap-1">
+                    <span>{user.first_name} {user.last_name}</span>
+                    {user.is_email_verified && (
+                      <span title="Verified Clinical Account" className="inline-flex items-center text-emerald-600">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-purple-600 font-semibold capitalize flex items-center gap-1">
+                    <span>{user.role}</span>
+                    {user.is_email_verified && (
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold border border-emerald-200">
+                        Verified
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <button 

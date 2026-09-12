@@ -1,4 +1,6 @@
 import uuid
+from datetime import timedelta
+from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
@@ -183,3 +185,31 @@ class DoctorRating(models.Model):
     class Meta:
         db_table = 'doctor_ratings'
         unique_together = ('doctor', 'patient')
+
+
+class EmailVerificationOTP(models.Model):
+    PURPOSE_CHOICES = (
+        ('registration', 'Account Registration'),
+        ('password_reset', 'Password Reset'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_otps')
+    otp_code = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='registration')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'email_verification_otps'
+        ordering = ['-created_at']
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.user.email} - {self.otp_code} ({self.purpose})"
+
