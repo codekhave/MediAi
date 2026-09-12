@@ -108,17 +108,25 @@ def generate_and_send_otp(user, purpose='registration'):
 
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'MediAI Health <noreply@mediai-health.com>')
 
-    try:
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=from_email,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False
-        )
-        logger.info(f"Successfully dispatched OTP {otp_code} to {user.email} ({purpose})")
-    except Exception as e:
-        logger.warning(f"Could not send email via SMTP ({e}). Fallback logged OTP: {otp_code} for {user.email}")
+    import threading
+
+    def _async_email_worker():
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=from_email,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False
+            )
+            logger.info(f"Successfully dispatched OTP {otp_code} to {user.email} ({purpose})")
+        except Exception as e:
+            logger.warning(f"Could not send email via SMTP ({e}). Fallback logged OTP: {otp_code} for {user.email}")
+
+    # Fire email in background thread to guarantee zero HTTP blocking/delay
+    email_thread = threading.Thread(target=_async_email_worker, daemon=True)
+    email_thread.start()
 
     return otp_obj, otp_code
+

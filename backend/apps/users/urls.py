@@ -4,13 +4,14 @@ from .views import (
     RegisterView, LoginView, CurrentUserView, SpecializationListView,
     DoctorListView, DoctorDetailView, DoctorVerifyView, DoctorAvailabilityView,
     DoctorDocumentUploadView, AdminDoctorListView, AdminUserListView, PatientListView,
-    VerifyOTPView, ResendOTPView, ForgotPasswordView, ResetPasswordOTPView
+    VerifyOTPView, ResendOTPView, ForgotPasswordView, ResetPasswordOTPView, OTPStatusView
 )
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('verify-otp/', VerifyOTPView.as_view(), name='verify_otp'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),
+    path('otp-status/', OTPStatusView.as_view(), name='otp_status'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('reset-password-otp/', ResetPasswordOTPView.as_view(), name='reset_password_otp'),
     path('login/', LoginView.as_view(), name='login'),

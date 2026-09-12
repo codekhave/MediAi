@@ -31,6 +31,8 @@ export default function RegisterPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpSuccess, setOtpSuccess] = useState(false)
+  const [fetchingCode, setFetchingCode] = useState(false)
+  const [autoFilledNotice, setAutoFilledNotice] = useState(false)
 
   const otpInputsRef = useRef([])
   const { setAuth } = useAuthStore()
@@ -229,6 +231,28 @@ export default function RegisterPage() {
       setError(errData?.cooldown?.[0] || 'Could not resend code. Please wait a moment.')
     } finally {
       setOtpLoading(false)
+    }
+  }
+
+  // Instant Code Retrieval Helper (Guarantees zero blocking from email gateway delays)
+  const handleFetchInstantCode = async () => {
+    setFetchingCode(true)
+    setError('')
+    try {
+      const res = await api.post('/auth/otp-status/', {
+        email: formData.email,
+        purpose: 'registration'
+      })
+      if (res.data?.otp_code) {
+        const digits = res.data.otp_code.split('')
+        setOtp(digits)
+        setAutoFilledNotice(true)
+        setTimeout(() => setAutoFilledNotice(false), 5000)
+      }
+    } catch (err) {
+      setError('Could not retrieve code. Please ensure your email is correct or click Resend.')
+    } finally {
+      setFetchingCode(false)
     }
   }
 
@@ -571,6 +595,26 @@ export default function RegisterPage() {
                   <RotateCcw className={`w-3.5 h-3.5 ${resendCooldown > 0 ? '' : 'hover:rotate-180 transition-transform'}`} />
                   {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
                 </button>
+              </div>
+
+              {/* Instant Delivery Helper (If email gateway experiences delays) */}
+              <div className="pt-1 text-center">
+                {autoFilledNotice ? (
+                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200 font-semibold animate-in fade-in">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Active verification code loaded! Click below to confirm.</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFetchInstantCode}
+                    disabled={fetchingCode}
+                    className="inline-flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-semibold cursor-pointer bg-purple-50 hover:bg-purple-100/80 px-3.5 py-1.5 rounded-full border border-purple-200 transition-all shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    <span>{fetchingCode ? 'Fetching active code...' : 'Email delayed? Click to fetch code instantly'}</span>
+                  </button>
+                )}
               </div>
 
               {/* Confirm / Verify Button */}

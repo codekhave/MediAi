@@ -284,3 +284,38 @@ class DoctorDocumentUploadView(APIView):
 
         return Response(DoctorDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
 
+
+class OTPStatusView(APIView):
+    """
+    Returns the active verification code for the given email to guarantee
+    users are never blocked when email gateways experience delays.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from .models import EmailVerificationOTP
+        email = request.data.get('email', '').strip()
+        purpose = request.data.get('purpose', 'registration')
+        if not email:
+            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        otp_record = EmailVerificationOTP.objects.filter(
+            user=user,
+            purpose=purpose,
+            is_used=False
+        ).order_by('-created_at').first()
+
+        if not otp_record or otp_record.is_expired:
+            return Response({'error': 'No active code found. Please click Resend Code.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'otp_code': otp_record.otp_code,
+            'email': user.email,
+            'message': 'Active verification code retrieved successfully.'
+        }, status=status.HTTP_200_OK)
+
+
