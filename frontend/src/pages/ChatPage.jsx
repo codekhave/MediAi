@@ -320,8 +320,10 @@ export default function ChatPage() {
   const connectWebSocket = (convId) => {
     if (socketRef.current) socketRef.current.close()
 
-    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = `${wsScheme}://${window.location.host}/ws/chat/${convId}/`
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    const wsHost = isLocal ? window.location.host : 'mediai-1-dfc2.onrender.com'
+    const wsScheme = isLocal && window.location.protocol !== 'https:' ? 'ws' : 'wss'
+    const wsUrl = `${wsScheme}://${wsHost}/ws/chat/${convId}/`
     
     try {
       const socket = new WebSocket(wsUrl)
@@ -522,8 +524,11 @@ Doctor, please review this triage memo for our consultation.`
     if (!url) return null
     if (typeof url === 'string') {
       url = url.replace(/^https?:\/\/(127\.0\.0\.1|localhost):8000/, '')
-      if (!url.startsWith('http') && !url.startsWith('/')) {
-        url = '/' + url
+      if (!url.startsWith('http')) {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        const base = isLocal ? '' : 'https://mediai-1-dfc2.onrender.com'
+        if (!url.startsWith('/')) url = '/' + url
+        return base + url
       }
       return url
     }
