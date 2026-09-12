@@ -15,6 +15,13 @@ class HealthArticleListCreateView(APIView):
         return [permissions.AllowAny()]
 
     def get(self, request):
+        if not HealthArticle.objects.filter(is_published=True).exists():
+            try:
+                from django.core.management import call_command
+                call_command('seed_data')
+            except Exception as e:
+                pass
+
         queryset = HealthArticle.objects.filter(is_published=True).select_related('author__user', 'author__specialization', 'creator_user')
         
         category = request.query_params.get('category')

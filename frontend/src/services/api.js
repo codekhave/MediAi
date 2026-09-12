@@ -57,7 +57,7 @@ api.interceptors.response.use(
       }
 
       try {
-        const res = await axios.post('/api/auth/token/refresh/', { refresh: refreshToken })
+        const res = await axios.post(`${BASE_URL}/auth/token/refresh/`, { refresh: refreshToken })
         const newToken = res.data.access
         localStorage.setItem('medi_access_token', newToken)
         processQueue(null, newToken)
