@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+load_dotenv(os.path.join(BASE_DIR.parent, '.env'))
 
 import sys
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
